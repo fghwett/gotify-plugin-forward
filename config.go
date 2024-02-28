@@ -10,9 +10,9 @@ const (
 )
 
 type Config struct {
-	Version  string                            `yaml:"version"`
-	Rules    map[string][]*Rule                `yaml:"rules"`
-	Channels map[string]map[string]interface{} `yaml:"channels"`
+	Version  string                            `yaml:"version" json:"version"`
+	Rules    map[string][]*Rule                `yaml:"rules" json:"rules"`
+	Channels map[string]map[string]interface{} `yaml:"channels" json:"channels"`
 }
 
 func (c *Config) GetChannels(token *string) []map[string]interface{} {
@@ -65,8 +65,8 @@ const (
 )
 
 type Rule struct {
-	Channel string `yaml:"channel"`
-	Enabled bool   `yaml:"enabled"`
+	Channel string `yaml:"channel" json:"channel"`
+	Enabled bool   `yaml:"enabled" json:"enabled"`
 }
 
 var defaultConfig = &Config{
