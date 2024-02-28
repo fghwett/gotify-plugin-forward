@@ -15,9 +15,9 @@ import (
 )
 
 type BarkConfig struct {
-	Url    *string `json:"url"`
-	AesKey *string `json:"aes_key"`
-	AesIV  *string `json:"aes_iv"`
+	Url    *string `json:"url,omitempty"`
+	AesKey *string `json:"aes_key,omitempty"`
+	AesIV  *string `json:"aes_iv,omitempty"`
 }
 
 type BarkBody struct {
