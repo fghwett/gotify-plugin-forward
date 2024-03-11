@@ -19,6 +19,7 @@ func (c *MyPlugin) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 	c.basePath = basePath
 
 	g.Match([]string{http.MethodGet, http.MethodPost}, "/", c.Message)
+	g.Match([]string{http.MethodGet, http.MethodPost}, "/message", c.Message)
 }
 
 type MessageExternal struct {
