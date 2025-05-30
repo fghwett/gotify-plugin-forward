@@ -1,59 +1,29 @@
 package main
 
 import (
+	"github.com/fghwett/gotify-plugin-forward/app"
+	"github.com/fghwett/gotify-plugin-forward/consts"
 	"github.com/gotify/plugin-api"
-	"log/slog"
 )
 
-const (
-	PluginName = "gotify-plugin-forward"
-)
-
-// GetGotifyPluginInfo returns gotify plugin info.
+// GetGotifyPluginInfo 返回插件信息
 func GetGotifyPluginInfo() plugin.Info {
 	return plugin.Info{
-		ModulePath:  "github.com/fghwett/gotify-plugin-forward",
-		Version:     "0.0.1",
-		Author:      "FGHWETT",
-		Website:     "https://github.com/fghwett/gotify-plugin-forward",
-		Description: "Forward gotify message to Bark or DingTalk etc.",
-		License:     "MIT",
-		Name:        PluginName,
+		Version:     consts.PluginVersion,
+		Author:      consts.PluginAuthor,
+		Name:        consts.PluginName,
+		Website:     consts.PluginWebsite,
+		Description: consts.PluginDescription,
+		License:     consts.PluginLicense,
+		ModulePath:  consts.PluginModulePath,
 	}
 }
 
-// MyPlugin is the gotify plugin instance.
-type MyPlugin struct {
-	basePath string
-	config   *Config
-	logger   *slog.Logger
-
-	user           plugin.UserContext
-	messageHandler plugin.MessageHandler
-	storageHandler plugin.StorageHandler
-}
-
-// Enable enables the plugin.
-func (c *MyPlugin) Enable() error {
-	c.logger.Info("Plugin enabled")
-	return nil
-}
-
-// Disable disables the plugin.
-func (c *MyPlugin) Disable() error {
-	c.logger.Info("Plugin disabled")
-	return nil
-}
-
-// NewGotifyPluginInstance creates a plugin instance for a user context.
+// NewGotifyPluginInstance 为单个用户创建一个插件实例
 func NewGotifyPluginInstance(ctx plugin.UserContext) plugin.Plugin {
-	logger := NewLogger().With(slog.String("user", ctx.Name))
-	logger.Info("Creating plugin instance")
+	a := app.New(ctx)
 
-	return &MyPlugin{
-		user:   ctx,
-		logger: logger,
-	}
+	return a
 }
 
 func main() {

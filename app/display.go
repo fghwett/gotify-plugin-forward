@@ -1,19 +1,17 @@
-package main
+package app
 
-import (
-	"net/url"
-)
+import "net/url"
 
-func (c *MyPlugin) GetDisplay(location *url.URL) string {
-	c.logger.With("location", location.String()).Info("get display")
+func (a *App) GetDisplay(location *url.URL) string {
+	a.logger.With("location", location.String()).Info("get display")
 
-	if c.user.Admin {
-		return "You are an admin! You have super cow powers."
+	if a.user.Admin {
+		return "管理员才能看到这里"
 	} else {
-		return "You are **NOT** an admin! You can do nothing:("
+		return "你还不是管理员"
 	}
 	//loc := &url.URL{
-	//	Path: c.basePath,
+	//	Path: a.basePath,
 	//}
 	//if location != nil {
 	//	// If the server location can be determined, make the URL absolute

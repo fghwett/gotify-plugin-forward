@@ -15,9 +15,9 @@ import (
 )
 
 type BarkConfig struct {
-	Url    *string `json:"url,omitempty"`
-	AesKey *string `json:"aes_key,omitempty"`
-	AesIV  *string `json:"aes_iv,omitempty"`
+	Url    string  `yaml:"url"`
+	AesKey *string `yaml:"aes_key,omitempty"`
+	AesIV  *string `yaml:"aes_iv,omitempty"`
 }
 
 type BarkBody struct {
@@ -67,7 +67,7 @@ func (c *BarkClient) SendMessage(message plugin.Message) error {
 	if err != nil {
 		return err
 	}
-	if conf.Url == nil {
+	if conf.Url == "" {
 		return errors.New("url is not set")
 	}
 	barkBody := &BarkBody{
@@ -93,7 +93,7 @@ func (c *BarkClient) SendMessage(message plugin.Message) error {
 		return err
 	}
 	var resp *http.Response
-	if resp, err = http.Post(*conf.Url, "application/json", bytes.NewReader(body)); err != nil {
+	if resp, err = http.Post(conf.Url, "application/json", bytes.NewReader(body)); err != nil {
 		return err
 	}
 	defer func() {

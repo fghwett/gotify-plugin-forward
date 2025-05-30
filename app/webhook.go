@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bytes"
@@ -14,12 +14,12 @@ import (
 )
 
 // RegisterWebhook implements plugin.Webhooker.
-func (c *MyPlugin) RegisterWebhook(basePath string, g *gin.RouterGroup) {
-	c.logger.With("base_path", basePath).Info("register webhook")
-	c.basePath = basePath
+func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
+	a.logger.With("base_path", basePath).Info("register webhook")
+	a.basePath = basePath
 
-	g.Match([]string{http.MethodGet, http.MethodPost}, "/", c.Message)
-	g.Match([]string{http.MethodGet, http.MethodPost}, "/message", c.Message)
+	g.Match([]string{http.MethodGet, http.MethodPost}, "/", a.Message)
+	g.Match([]string{http.MethodGet, http.MethodPost}, "/message", a.Message)
 }
 
 type MessageExternal struct {
@@ -32,14 +32,14 @@ type MessageExternal struct {
 	Date          time.Time              `json:"date"`
 }
 
-func (c *MyPlugin) Message(ctx *gin.Context) {
-	message, err := c.getMessage(ctx)
+func (a *App) Message(ctx *gin.Context) {
+	message, err := a.getMessage(ctx)
 	if err != nil {
 		_ = ctx.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	messageHandler := c.getSendMessageHandler(ctx)
+	messageHandler := a.getSendMessageHandler(ctx)
 
 	if err = messageHandler.SendMessage(*message); err != nil {
 		if errors.Is(err, &Result{}) {
@@ -51,7 +51,7 @@ func (c *MyPlugin) Message(ctx *gin.Context) {
 	}
 
 	// 额外推送消息
-	if err = c.sendExtraMessage(c.getToken(ctx), *message); err != nil {
+	if err = a.sendExtraMessage(a.getToken(ctx), *message); err != nil {
 		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -62,7 +62,7 @@ func (c *MyPlugin) Message(ctx *gin.Context) {
 	})
 }
 
-func (c *MyPlugin) getMessage(ctx *gin.Context) (*plugin.Message, error) {
+func (a *App) getMessage(ctx *gin.Context) (*plugin.Message, error) {
 	// 获取消息本体
 	message := &MessageExternal{}
 	if err := ctx.Bind(message); err != nil {
@@ -93,15 +93,15 @@ func (c *MyPlugin) getMessage(ctx *gin.Context) (*plugin.Message, error) {
 	return m, nil
 }
 
-func (c *MyPlugin) getSendMessageHandler(ctx *gin.Context) plugin.MessageHandler {
-	if c.getToken(ctx) == nil {
-		return c.messageHandler
+func (a *App) getSendMessageHandler(ctx *gin.Context) plugin.MessageHandler {
+	if a.getToken(ctx) == nil {
+		return a.messageHandler
 	}
 
-	return NewMessageHandler(ctx, c.logger)
+	return NewMessageHandler(ctx, a.logger)
 }
 
-func (c *MyPlugin) getToken(ctx *gin.Context) *string {
+func (a *App) getToken(ctx *gin.Context) *string {
 	token, ok := ctx.GetQuery("token")
 	if !ok || token == "" {
 		return nil
