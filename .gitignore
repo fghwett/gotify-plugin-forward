@@ -4,4 +4,3 @@ build
 *.so
 
 _tmp/
-Taskfile.yaml
