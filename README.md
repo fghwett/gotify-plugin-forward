@@ -57,7 +57,7 @@ tasks:
     deps: [create-build-dir]
     cmds:
       - wget -LO {{.BUILDDIR}}/gotify-server.mod https://raw.githubusercontent.com/gotify/server/{{.GOTIFY_VERSION}}/go.mod
-      - gomod-cap -from {{.BUILDDIR}}/gotify-server.mod -to go.mod
+      - $(go env GOPATH)/bin/gomod-cap -from {{.BUILDDIR}}/gotify-server.mod -to go.mod
       - rm -f {{.BUILDDIR}}/gotify-server.mod
       - go mod tidy
 
