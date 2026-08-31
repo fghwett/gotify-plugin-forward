@@ -1,0 +1,79 @@
+name: Build
+
+# 手动触发：按指定的 gotify/server 版本打包插件，产物以 artifact 提供（不发 Release）
+on:
+  workflow_dispatch:
+    inputs:
+      gotify_version:
+        description: 'gotify/server 版本标签（如 v3.1.0）'
+        required: true
+        default: 'v3.1.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PLUGIN_NAME: gotify-plugin-forward
+      GOTIFY_VERSION: ${{ inputs.gotify_version }}
+    steps:
+      - uses: actions/checkout@v8
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: 安装依赖对齐工具
+        run: go install github.com/gotify/plugin-api/cmd/gomod-cap@latest
+
+      - name: 按 gotify ${{ env.GOTIFY_VERSION }} 对齐依赖
+        run: |
+          wget -qO gotify-server.mod https://raw.githubusercontent.com/gotify/server/${GOTIFY_VERSION}/go.mod
+          "$(go env GOPATH)/bin/gomod-cap" -from gotify-server.mod -to go.mod
+          rm gotify-server.mod
+          go mod tidy
+
+      - name: 构建前端（SolidJS 配置页面）
+        run: |
+          corepack enable pnpm
+          cd ui && pnpm install && pnpm build && touch ../app/web/.gitkeep
+
+      - name: 获取 gotify 编译用 Go 版本并准备 QEMU（arm64 需要）
+        run: |
+          echo "GO_VERSION=$(wget -qO- https://raw.githubusercontent.com/gotify/server/${GOTIFY_VERSION}/GO_VERSION)" >> "$GITHUB_ENV"
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+      - name: 编译 linux-amd64
+        run: |
+          docker run --rm -v "$PWD:/proj" -v "$(go env GOPATH)/pkg/mod:/go/pkg/mod:ro" -w /proj \
+            gotify/build:${GO_VERSION}-linux-amd64 \
+            go build -mod=readonly -a -installsuffix cgo -buildmode=plugin \
+            -o build/${PLUGIN_NAME}-linux-amd64.so /proj
+
+      - name: 编译 linux-arm64
+        run: |
+          docker run --rm -v "$PWD:/proj" -v "$(go env GOPATH)/pkg/mod:/go/pkg/mod:ro" -w /proj \
+            gotify/build:${GO_VERSION}-linux-arm64 \
+            go build -mod=readonly -a -installsuffix cgo -buildmode=plugin \
+            -o build/${PLUGIN_NAME}-linux-arm64.so /proj
+
+      # 共享依赖与官方镜像不一致时构建失败，避免产出无法加载的插件
+      - name: 校验与官方镜像的兼容性
+        run: |
+          scripts/verify-compat.sh "${GOTIFY_VERSION#v}" \
+            build/${PLUGIN_NAME}-linux-amd64.so \
+            build/${PLUGIN_NAME}-linux-arm64.so
+
+      - name: 运行测试
+        run: go test ./...
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}-${{ env.GOTIFY_VERSION }}
+          path: |
+            build/*.so
+          retention-days: 14

@@ -114,3 +114,20 @@ tasks:
   build:
     desc: 编译全平台插件（amd64 / arm-7 / arm64）
     deps: [build-linux-arm-7, build-linux-amd64, build-linux-arm64]
+
+  release:
+    desc: '发布新版本（用法: task release VERSION=x.y.z，触发 GitHub Actions 构建并发布 Release）'
+    requires:
+      vars: [VERSION]
+    preconditions:
+      - sh: echo '{{.VERSION}}' | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'
+        msg: 版本号格式应为 x.y.z，收到 "{{.VERSION}}"
+      - sh: test -z "$(git status --porcelain)"
+        msg: 工作区不干净，请先提交或暂存变更
+    cmds:
+      - sed -i -E 's/(PluginVersion[[:space:]]*=[[:space:]]*")[^"]+/\1{{.VERSION}}/' consts/consts.go
+      - go build ./...
+      - git add consts/consts.go
+      - git commit -m "发布 v{{.VERSION}}"
+      - git tag "v{{.VERSION}}"
+      - git push origin main "v{{.VERSION}}"

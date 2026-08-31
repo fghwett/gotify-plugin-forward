@@ -46,3 +46,23 @@ systemctl restart gotify-server
 构建使用 [Taskfile](https://taskfile.dev)（命令为 `go-task` / `task`），任务定义见仓库中的 `Taskfile.yaml`。
 依赖 Docker、`gomod-cap`（首次执行 `task download-tools` 安装），
 以及 Node.js + pnpm（用于构建 SolidJS 编写的可视化页面，`task ui-build`）。
+
+## 版本发布
+
+```shell
+# 发布新版本（更新版本号、打 tag 并推送，自动触发 GitHub Actions）
+task release VERSION=0.0.3
+```
+
+推送 `v*` 标签后 [Release workflow](.github/workflows/release.yml) 会自动：
+
+1. 获取 gotify/server 的**最新**发布版本
+2. 对齐依赖并编译 linux-amd64 / linux-arm64 两个平台的 `.so`
+3. 校验产物与官方 gotify 镜像的共享依赖完全一致（防止发布无法加载的插件）
+4. 创建 GitHub Release 并上传产物
+
+另外还有 [Build workflow](.github/workflows/build.yml)，可在 Actions 页面手动触发，
+**指定任意 gotify 版本**打包（产物以 artifact 形式下载，不发布 Release）。
+
+> 若 gotify 新版本升级了共享依赖，Release 的兼容性校验会失败，
+> 需要按 go.mod 中 replace 的注释更新钉住的版本后重新发版。
