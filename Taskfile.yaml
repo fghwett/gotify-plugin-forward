@@ -18,6 +18,31 @@ tasks:
     cmds:
       - go install github.com/gotify/plugin-api/cmd/gomod-cap@latest
 
+  ui-install:
+    desc: 安装前端依赖（SolidJS）
+    dir: ui
+    cmds:
+      - pnpm install
+    sources:
+      - package.json
+      - pnpm-lock.yaml
+    generates:
+      - node_modules/.modules.yaml
+
+  ui-build:
+    desc: 构建可视化配置页面（输出到 app/web 供 go:embed 嵌入）
+    deps: [ui-install]
+    dir: ui
+    cmds:
+      - pnpm build
+      - touch ../app/web/.gitkeep
+    sources:
+      - src/**/*
+      - index.html
+      - vite.config.ts
+    generates:
+      - ../app/web/index.html
+
   create-build-dir:
     desc: 创建构建目录
     cmds:
@@ -29,7 +54,12 @@ tasks:
     desc: 按 gotify server {{.GOTIFY_VERSION}} 的 go.mod 对齐依赖
     deps: [create-build-dir]
     cmds:
-      - wget -LO {{.BUILDDIR}}/gotify-server.mod https://raw.githubusercontent.com/gotify/server/{{.GOTIFY_VERSION}}/go.mod
+      - |
+        if [ -d _tmp/gotify-server/.git ]; then
+          git -C _tmp/gotify-server show {{.GOTIFY_VERSION}}:go.mod > {{.BUILDDIR}}/gotify-server.mod
+        else
+          wget -LO {{.BUILDDIR}}/gotify-server.mod https://raw.githubusercontent.com/gotify/server/{{.GOTIFY_VERSION}}/go.mod
+        fi
       - $(go env GOPATH)/bin/gomod-cap -from {{.BUILDDIR}}/gotify-server.mod -to go.mod
       - rm -f {{.BUILDDIR}}/gotify-server.mod
       - go mod tidy
@@ -38,11 +68,16 @@ tasks:
     desc: 获取 gotify server {{.GOTIFY_VERSION}} 的 Go 编译版本
     deps: [create-build-dir]
     cmds:
-      - wget -LO {{.BUILDDIR}}/gotify-server-go-version https://raw.githubusercontent.com/gotify/server/{{.GOTIFY_VERSION}}/GO_VERSION
+      - |
+        if [ -d _tmp/gotify-server/.git ]; then
+          git -C _tmp/gotify-server show {{.GOTIFY_VERSION}}:GO_VERSION > {{.BUILDDIR}}/gotify-server-go-version
+        else
+          wget -LO {{.BUILDDIR}}/gotify-server-go-version https://raw.githubusercontent.com/gotify/server/{{.GOTIFY_VERSION}}/GO_VERSION
+        fi
 
   build-linux-amd64:
     desc: 编译 linux-amd64 插件
-    deps: [get-gotify-server-go-version, update-go-mod]
+    deps: [get-gotify-server-go-version, update-go-mod, ui-build]
     cmds:
       - docker run --rm
         -v "$PWD:{{.DOCKER_WORKDIR}}"
@@ -54,7 +89,7 @@ tasks:
 
   build-linux-arm-7:
     desc: 编译 linux-arm-7 插件
-    deps: [get-gotify-server-go-version, update-go-mod]
+    deps: [get-gotify-server-go-version, update-go-mod, ui-build]
     cmds:
       - docker run --rm
         -v "$PWD:{{.DOCKER_WORKDIR}}"
@@ -66,7 +101,7 @@ tasks:
 
   build-linux-arm64:
     desc: 编译 linux-arm64 插件
-    deps: [get-gotify-server-go-version, update-go-mod]
+    deps: [get-gotify-server-go-version, update-go-mod, ui-build]
     cmds:
       - docker run --rm
         -v "$PWD:{{.DOCKER_WORKDIR}}"

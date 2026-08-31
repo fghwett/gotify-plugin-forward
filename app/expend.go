@@ -6,7 +6,11 @@ import (
 )
 
 func (a *App) sendExtraMessage(token *string, msg plugin.Message) (err error) {
-	cs := a.config.GetChannels(token)
+	conf := a.effectiveConfig()
+	if conf == nil {
+		return
+	}
+	cs := conf.GetChannels(token)
 
 	for _, channel := range cs {
 		if err = a.sendToChannel(channel, msg); err != nil {

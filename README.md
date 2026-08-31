@@ -1,5 +1,27 @@
 将gotify消息转发到bark等其他平台。
 
+## 功能
+
+- 消息推送接口与原版 gotify 兼容（`.../message?token=应用token`），可无缝替换原地址
+- 支持按 token 配置转发规则，多个渠道并行推送，`all` 作为兜底规则
+- 支持 Bark 推送，可选 AES 加密（端到端加密推送）
+- 可视化配置页面：在插件详情页点击链接进入，使用 passkey（指纹 / 面容 / 硬件密钥）保护
+
+## 可视化配置
+
+启用插件后，在插件详情页（Display 区域）可以看到配置页面地址，形如：
+
+```
+https://your-gotify.com/plugin/<插件ID>/custom/<随机令牌>/config
+```
+
+- 首次打开时设置 passkey，之后每次进入都需要验证
+- 页面地址含随机令牌、本身私密，请妥善保存
+- passkey 需要浏览器安全上下文（HTTPS 或 localhost）
+- passkey 丢失时，在 gotify 原生插件配置中将 `reset_passkey` 设为 `true` 并保存，
+  即可重新设置（完成后请改回 `false`）
+- 可视化保存的配置优先生效；如从未保存过，则回落使用 gotify 原生 YAML 配置
+
 ## 源码使用
 
 ```shell
@@ -22,4 +44,5 @@ systemctl restart gotify-server
 ```
 
 构建使用 [Taskfile](https://taskfile.dev)（命令为 `go-task` / `task`），任务定义见仓库中的 `Taskfile.yaml`。
-依赖 Docker 和 `gomod-cap`（首次执行 `task download-tools` 安装）。
+依赖 Docker、`gomod-cap`（首次执行 `task download-tools` 安装），
+以及 Node.js + pnpm（用于构建 SolidJS 编写的可视化页面，`task ui-build`）。

@@ -20,6 +20,21 @@ func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 
 	g.Match([]string{http.MethodGet, http.MethodPost}, "/", a.Message)
 	g.Match([]string{http.MethodGet, http.MethodPost}, "/message", a.Message)
+
+	// 可视化配置页面与配套 API（passkey 保护）
+	g.GET("/config", a.handleConfigPage)
+	g.GET("/assets/*filepath", a.handleConfigAssets)
+	api := g.Group("/api")
+	{
+		api.GET("/auth/status", a.handleAuthStatus)
+		api.POST("/auth/register/begin", a.handleRegisterBegin)
+		api.POST("/auth/register/finish", a.handleRegisterFinish)
+		api.POST("/auth/login/begin", a.handleLoginBegin)
+		api.POST("/auth/login/finish", a.handleLoginFinish)
+		api.POST("/auth/logout", a.handleLogout)
+		api.GET("/config", a.requireSession, a.handleConfigGet)
+		api.POST("/config", a.requireSession, a.handleConfigSave)
+	}
 }
 
 type MessageExternal struct {
