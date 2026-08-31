@@ -42,8 +42,9 @@ func (a *App) Message(ctx *gin.Context) {
 	messageHandler := a.getSendMessageHandler(ctx)
 
 	if err = messageHandler.SendMessage(*message); err != nil {
-		if errors.Is(err, &Result{}) {
-			_ = ctx.AbortWithError(err.(*Result).Code, err)
+		var result *Result
+		if errors.As(err, &result) {
+			_ = ctx.AbortWithError(result.Code, err)
 			return
 		}
 		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
@@ -121,6 +122,17 @@ func NewMessageHandler(ctx *gin.Context, logger *slog.Logger) *MessageHandler {
 	}
 }
 
+// requestScheme 从请求推断 gotify 对外访问协议，优先信任反代传递的 X-Forwarded-Proto
+func (c *MessageHandler) requestScheme() string {
+	if proto := c.ctx.GetHeader("X-Forwarded-Proto"); proto != "" {
+		return proto
+	}
+	if c.ctx.Request.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
 func (c *MessageHandler) SendMessage(message plugin.Message) error {
 	body, err := json.Marshal(&message)
 	if err != nil {
@@ -128,9 +140,12 @@ func (c *MessageHandler) SendMessage(message plugin.Message) error {
 	}
 
 	source := c.ctx.Request.URL
-	to, _ := url.Parse("http://127.0.0.1:80")
-	to.Path = "/message"
-	to.RawQuery = source.RawQuery
+	to := &url.URL{
+		Scheme:   c.requestScheme(),
+		Host:     c.ctx.Request.Host,
+		Path:     "/message",
+		RawQuery: source.RawQuery,
+	}
 
 	var resp *http.Response
 	if resp, err = http.Post(to.String(), `application/json`, bytes.NewReader(body)); err != nil {

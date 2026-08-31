@@ -1,10 +1,5 @@
 package app
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type Config struct {
 	Version  string                            `yaml:"version" json:"version"`
 	Rules    map[string][]*Rule                `yaml:"rules" json:"rules"`
@@ -38,11 +33,9 @@ func (c *Config) PtrString(s string) *string {
 }
 
 func (c *Config) getSpecialChannels(token *string) (channels []map[string]interface{}) {
-	body, _ := json.Marshal(c)
 	if token == nil {
 		return
 	}
-	fmt.Println("解析之后的配置", *token, string(body))
 	rules, ok := c.Rules[*token]
 	if !ok {
 		return
