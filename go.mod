@@ -45,8 +45,19 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
+)
+
+// 与官方 gotify/server Docker 镜像保持依赖严格一致（Go plugin 要求共享包
+// 版本完全相同，否则加载失败）。go-webauthn 的最低依赖版本更高，会经
+// MVS 拉高这些包，故用 replace 钉住。升级 gotify 时需同步核对镜像内
+// `go version -m gotify-app` 的实际版本。
+replace (
+	golang.org/x/crypto => golang.org/x/crypto v0.53.0
+	golang.org/x/net => golang.org/x/net v0.55.0
+	golang.org/x/sys => golang.org/x/sys v0.46.0
+	golang.org/x/text => golang.org/x/text v0.38.0
 )
