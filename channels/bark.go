@@ -98,7 +98,7 @@ func (c *BarkClient) SendMessage(message plugin.Message) error {
 	}
 	defer func() {
 		if e := resp.Body.Close(); e != nil {
-			c.logger.Error("close body failed", e)
+			c.logger.Error("close body failed", "error", e)
 		}
 	}()
 	if resp.StatusCode != http.StatusOK {

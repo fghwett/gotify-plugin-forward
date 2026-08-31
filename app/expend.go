@@ -10,7 +10,7 @@ func (a *App) sendExtraMessage(token *string, msg plugin.Message) (err error) {
 
 	for _, channel := range cs {
 		if err = a.sendToChannel(channel, msg); err != nil {
-			a.logger.Error("send to channel failed", err)
+			a.logger.Error("send to channel failed", "error", err)
 		}
 	}
 

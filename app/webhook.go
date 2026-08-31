@@ -138,7 +138,7 @@ func (c *MessageHandler) SendMessage(message plugin.Message) error {
 	}
 	defer func() {
 		if err = resp.Body.Close(); err != nil {
-			c.logger.Error("close response error:", err)
+			c.logger.Error("close response error", "error", err)
 		}
 	}()
 	if body, err = io.ReadAll(resp.Body); err != nil {
@@ -146,7 +146,7 @@ func (c *MessageHandler) SendMessage(message plugin.Message) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Error("response error:", string(body))
+		c.logger.Error("response error", "body", string(body))
 		return &Result{
 			Code:    resp.StatusCode,
 			Message: string(body),
