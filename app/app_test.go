@@ -162,11 +162,26 @@ func TestRootRouting(t *testing.T) {
 	resp := doReq(t, http.MethodGet, url, nil)
 	assert.NotEqual(t, http.StatusNotFound, resp.StatusCode)
 
-	// GET /config 老链接继续可用
+	// GET /config 已按需求移除
 	resp = doReq(t, http.MethodGet, url+"/config", nil)
-	assert.NotEqual(t, http.StatusNotFound, resp.StatusCode)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 	// POST 裸路径仍是消息接口：缺 message 参数应 400
 	resp = doReq(t, http.MethodPost, url, nil)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// 登录构造的 passkeyUser（仅 data）必须返回持久化的 UserID，
+// 否则 go-webauthn 的 userHandle 比对永远失败（登录必 401）
+func TestPasskeyUserWebAuthnID(t *testing.T) {
+	saved := []byte("0123456789abcdef0123456789abcdef")
+
+	login := &passkeyUser{data: &PasskeyData{UserID: saved}, name: "fghwett"}
+	assert.Equal(t, saved, login.WebAuthnID(), "登录场景应返回存储的 UserID 而非用户名")
+
+	registering := &passkeyUser{handle: saved, name: "fghwett"}
+	assert.Equal(t, saved, registering.WebAuthnID())
+
+	legacy := &passkeyUser{name: "fghwett"}
+	assert.Equal(t, []byte("fghwett"), legacy.WebAuthnID())
 }

@@ -70,12 +70,8 @@ func (a *App) handleRegisterFinish(ctx *gin.Context) {
 	user := &passkeyUser{name: a.user.Name, handle: a.registeringHandle}
 	credential, err := instance.FinishRegistration(user, session, ctx.Request)
 	if err != nil {
-		var protocolErr *protocol.Error
-		if errors.As(err, &protocolErr) {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, Result{Code: http.StatusBadRequest, Message: protocolErr.DevInfo})
-			return
-		}
-		a.abortInternal(ctx, err)
+		a.logger.Error("passkey 注册校验失败", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Result{Code: http.StatusBadRequest, Message: ceremonyError(err)})
 		return
 	}
 	if err = a.store.SavePasskey(&PasskeyData{
@@ -135,12 +131,8 @@ func (a *App) handleLoginFinish(ctx *gin.Context) {
 	user := &passkeyUser{data: data, name: a.user.Name}
 	credential, err := instance.FinishLogin(user, session, ctx.Request)
 	if err != nil {
-		var protocolErr *protocol.Error
-		if errors.As(err, &protocolErr) {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, Result{Code: http.StatusUnauthorized, Message: protocolErr.DevInfo})
-			return
-		}
-		a.abortInternal(ctx, err)
+		a.logger.Error("passkey 登录校验失败", "error", err)
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, Result{Code: http.StatusUnauthorized, Message: ceremonyError(err)})
 		return
 	}
 	// 回写凭据（含更新后的签名计数器）
@@ -195,6 +187,16 @@ func (a *App) requireSession(ctx *gin.Context) {
 		return
 	}
 	ctx.Next()
+}
+
+// ceremonyError 提取 WebAuthn 仪式失败的可读信息：
+// protocol.Error 的 DevInfo 经常为空，回落到完整错误描述，避免出现「401 空消息」。
+func ceremonyError(err error) string {
+	var protocolErr *protocol.Error
+	if errors.As(err, &protocolErr) && protocolErr.DevInfo != "" {
+		return protocolErr.DevInfo
+	}
+	return err.Error()
 }
 
 // handleTestSend 用提交的渠道配置（无需先保存）发送一条测试消息，

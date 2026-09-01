@@ -28,6 +28,11 @@ func (u *passkeyUser) WebAuthnID() []byte {
 	if len(u.handle) != 0 {
 		return u.handle
 	}
+	// 登录时 handle 为空，必须返回持久化保存的 UserID：
+	// go-webauthn 会把它与认证器返回的 userHandle 严格比对，回落到用户名会导致校验永远失败
+	if u.data != nil && len(u.data.UserID) != 0 {
+		return u.data.UserID
+	}
 	// 兼容历史数据缺 handle 的场景，回落到用户名
 	return []byte(u.name)
 }
@@ -207,13 +212,10 @@ func forwardedHostOf(ctx *gin.Context) string {
 	return ctx.Request.Host
 }
 
-// pageBasePath 从请求 URL 推断插件页面所在的根路径（不含 /config），
+// pageBasePath 从请求 URL 推断插件页面所在的根路径，
 // 用于设置 cookie 的作用范围，避免会话 cookie 泄露给 gotify 其他路由。
 func pageBasePath(ctx *gin.Context) string {
 	path := ctx.Request.URL.Path
-	if len(path) >= len("/config") && path[len(path)-len("/config"):] == "/config" {
-		return path[:len(path)-len("/config")]
-	}
 	if idx := lastIndex(path, "/api/"); idx >= 0 {
 		return path[:idx]
 	}

@@ -29,7 +29,6 @@ func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 	g.GET("/", a.handleRoot)
 
 	// 可视化配置页面与配套 API（passkey 保护）
-	g.GET("/config", a.handleConfigPage)
 	g.GET("/assets/*filepath", a.handleConfigAssets)
 	api := g.Group("/api")
 	{
