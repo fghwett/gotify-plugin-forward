@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -145,8 +146,11 @@ func (a *App) handleLoginFinish(ctx *gin.Context) {
 }
 
 func (a *App) handleLogout(ctx *gin.Context) {
-	if token, err := ctx.Cookie(sessionCookie); err == nil {
-		a.webauthn.dropSession(token)
+	// 浏览器可能持有多个同名 cookie（历史 Path 变体），全部失效
+	for _, cookie := range ctx.Request.Cookies() {
+		if cookie.Name == sessionCookie {
+			a.webauthn.dropSession(cookie.Value)
+		}
 	}
 	a.setSessionCookie(ctx, "")
 	ctx.JSON(http.StatusOK, Result{Code: 0, Message: "success"})
@@ -281,12 +285,17 @@ func errText(err error) string {
 	return err.Error()
 }
 
+// authenticated 校验会话 cookie。
+// 历史版本曾以带尾斜杠的 Path 写入同名 cookie，浏览器会按「长路径优先」
+// 同时发送新旧两个值，而 Go 的 Cookie() 只取第一个（旧值），因此这里
+// 逐个校验，任一有效即通过，让存量浏览器无需手动清 cookie 即可自愈。
 func (a *App) authenticated(ctx *gin.Context) bool {
-	token, err := ctx.Cookie(sessionCookie)
-	if err != nil {
-		return false
+	for _, cookie := range ctx.Request.Cookies() {
+		if cookie.Name == sessionCookie && a.webauthn.validSession(cookie.Value) {
+			return true
+		}
 	}
-	return a.webauthn.validSession(token)
+	return false
 }
 
 func (a *App) issueSession(ctx *gin.Context) {
@@ -299,11 +308,20 @@ func (a *App) issueSession(ctx *gin.Context) {
 }
 
 func (a *App) setSessionCookie(ctx *gin.Context, value string) {
+	base := strings.TrimSuffix(pageBasePath(ctx), "/")
+	if base == "" {
+		base = "/"
+	}
 	maxAge := int(sessionTTL.Seconds())
 	if value == "" {
 		maxAge = -1
 	}
-	ctx.SetCookie(sessionCookie, value, maxAge, pageBasePath(ctx), "", requestSchemeOf(ctx) == "https", true)
+	secure := requestSchemeOf(ctx) == "https"
+	ctx.SetCookie(sessionCookie, value, maxAge, base, "", secure, true)
+	// 顺手清除历史尾斜杠 Path 的同名 cookie，避免新旧值并存干扰
+	if base != "/" {
+		ctx.SetCookie(sessionCookie, "", -1, base+"/", "", secure, true)
+	}
 }
 
 func (a *App) popChallengeFromRequest(ctx *gin.Context) (webauthn.SessionData, bool) {

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -212,12 +213,12 @@ func forwardedHostOf(ctx *gin.Context) string {
 	return ctx.Request.Host
 }
 
-// pageBasePath 从请求 URL 推断插件页面所在的根路径，
+// pageBasePath 从请求 URL 推断插件页面所在的根路径（规整为无尾斜杠），
 // 用于设置 cookie 的作用范围，避免会话 cookie 泄露给 gotify 其他路由。
 func pageBasePath(ctx *gin.Context) string {
 	path := ctx.Request.URL.Path
 	if idx := lastIndex(path, "/api/"); idx >= 0 {
-		return path[:idx]
+		return strings.TrimSuffix(path[:idx], "/")
 	}
 	return "/"
 }

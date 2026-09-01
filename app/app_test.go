@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -184,4 +185,34 @@ func TestPasskeyUserWebAuthnID(t *testing.T) {
 
 	legacy := &passkeyUser{name: "fghwett"}
 	assert.Equal(t, []byte("fghwett"), legacy.WebAuthnID())
+}
+
+// 浏览器对同名不同 Path 的 cookie 按「长路径优先」排序发送，Go 的
+// Cookie() 只取第一个（历史尾斜杠 Path 的旧值），认证必须逐个校验
+func TestAuthenticatedWithDuplicateCookies(t *testing.T) {
+	a := newTestApp(t, &memStorage{})
+	r, base := newTestRouter(a)
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	valid, err := a.webauthn.newSession()
+	require.NoError(t, err)
+
+	req, _ := http.NewRequest(http.MethodGet, server.URL+base()+"/api/config", nil)
+	req.Header.Set("Cookie", sessionCookie+"=stale-token; "+sessionCookie+"="+valid)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "任一有效 cookie 都应通过认证")
+}
+
+func TestPageBasePathCanonical(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mk := func(p string) *gin.Context {
+		return &gin.Context{Request: &http.Request{URL: &url.URL{Path: p}}}
+	}
+	// 双斜杠历史形态必须规整为无尾斜杠，避免签出第二个 Path 变体
+	assert.Equal(t, "/p/t", pageBasePath(mk("/p/t//api/auth/login/finish")))
+	assert.Equal(t, "/p/t", pageBasePath(mk("/p/t/api/config")))
+	assert.Equal(t, "/", pageBasePath(mk("/")))
 }

@@ -22,6 +22,9 @@ func (a *App) handleConfigPage(ctx *gin.Context) {
 		a.abortInternal(ctx, err)
 		return
 	}
+	// index.html 每次都回源校验，保证发版后浏览器立即拿到新页面；
+	// 引用的 assets 文件名带内容哈希，可长期缓存
+	ctx.Header("Cache-Control", "no-cache")
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", body)
 }
 
@@ -38,5 +41,6 @@ func (a *App) handleConfigAssets(ctx *gin.Context) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	ctx.Header("Cache-Control", "public, max-age=31536000, immutable")
 	ctx.Data(http.StatusOK, contentType, body)
 }
