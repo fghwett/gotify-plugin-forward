@@ -19,8 +19,10 @@
 启用插件后，在插件详情页（Display 区域）可以看到配置页面地址，形如：
 
 ```
-https://your-gotify.com/plugin/<插件ID>/custom/<随机令牌>/config
+https://your-gotify.com/plugin/<插件ID>/custom/<随机令牌>/
 ```
+
+（旧的 `/config` 结尾地址也继续可用）
 
 - 首次打开时设置 passkey，之后每次进入都需要验证
 - 页面分为四个标签：

@@ -136,3 +136,37 @@ func TestRegisterFinishRejectsBadSession(t *testing.T) {
 		map[string]string{"X-Session-Id": "not-exists"})
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
+
+// basePath 带尾斜杠注册时应规整为无尾斜杠形式，避免拼出 "//config" 双斜杠地址
+func TestBasePathNormalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	a := New(plugin.UserContext{ID: 1, Name: "tester", Admin: true})
+	a.SetStorageHandler(&memStorage{})
+
+	r := gin.New()
+	a.RegisterWebhook("/plugin/1/custom/tok/", r.Group("/plugin/1/custom/tok/"))
+	assert.Equal(t, "/plugin/1/custom/tok", a.basePath)
+
+	display := a.GetDisplay(nil)
+	assert.NotContains(t, display, "//", "展示链接不应包含双斜杠")
+}
+
+func TestRootRouting(t *testing.T) {
+	a := newTestApp(t, &memStorage{})
+	r, base := newTestRouter(a)
+	server := httptest.NewServer(r)
+	defer server.Close()
+	url := server.URL + base()
+
+	// GET 裸路径且无 message 参数 → 配置页面（源码环境缺 index.html 时为 500，但不应 404）
+	resp := doReq(t, http.MethodGet, url, nil)
+	assert.NotEqual(t, http.StatusNotFound, resp.StatusCode)
+
+	// GET /config 老链接继续可用
+	resp = doReq(t, http.MethodGet, url+"/config", nil)
+	assert.NotEqual(t, http.StatusNotFound, resp.StatusCode)
+
+	// POST 裸路径仍是消息接口：缺 message 参数应 400
+	resp = doReq(t, http.MethodPost, url, nil)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}

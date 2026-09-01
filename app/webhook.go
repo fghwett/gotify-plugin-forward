@@ -4,24 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/gotify/plugin-api"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fghwett/gotify-plugin-forward/channels"
+	"github.com/gin-gonic/gin"
+	"github.com/gotify/plugin-api"
 )
 
 // RegisterWebhook implements plugin.Webhooker.
 func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 	a.logger.With("base_path", basePath).Info("register webhook")
-	a.basePath = basePath
+	// gotify 传入的 basePath 带尾部斜杠，规整为无尾斜杠形式，
+	// 避免拼接出 "//config" 这类双斜杠地址（相对路径请求会跟着解析错）
+	a.basePath = "/" + strings.Trim(basePath, "/")
 
-	g.Match([]string{http.MethodGet, http.MethodPost}, "/", a.Message)
 	g.Match([]string{http.MethodGet, http.MethodPost}, "/message", a.Message)
+	g.POST("/", a.Message)
+	// 裸路径 GET：兼容原版「GET /?message=…」推送；无消息参数时展示配置页面
+	g.GET("/", a.handleRoot)
 
 	// 可视化配置页面与配套 API（passkey 保护）
 	g.GET("/config", a.handleConfigPage)
@@ -41,6 +46,15 @@ func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 		api.DELETE("/logs", a.requireSession, a.handleLogsClear)
 		api.GET("/meta", a.requireSession, a.handleMeta)
 	}
+}
+
+// handleRoot 区分「GET / 推送消息」与「打开配置页面」两种用法。
+func (a *App) handleRoot(ctx *gin.Context) {
+	if ctx.Query("message") != "" {
+		a.Message(ctx)
+		return
+	}
+	a.handleConfigPage(ctx)
 }
 
 type MessageExternal struct {

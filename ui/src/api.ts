@@ -1,6 +1,6 @@
-// 页面挂在 gotify 动态分配的路径前缀下（…/config），
-// 相对路径 api/... 会解析到同一前缀的 /api/...
-const BASE = 'api'
+// 页面可能挂在插件基础路径（…/）或 /config 下，
+// 按当前地址解析出 api 前缀的绝对路径，避免相对解析受地址形态影响
+const BASE = new URL('api', location.href).pathname
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {

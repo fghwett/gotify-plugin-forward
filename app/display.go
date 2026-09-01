@@ -11,7 +11,7 @@ func (a *App) GetDisplay(location *url.URL) string {
 
 	page := "（插件尚未完成注册，请重启 gotify 后查看）"
 	if a.basePath != "" {
-		loc := &url.URL{Path: a.basePath + "/config"}
+		loc := &url.URL{Path: a.basePath}
 		if location != nil {
 			// 从当前访问地址推断完整 URL，兼容反向代理部署
 			loc.Scheme = location.Scheme
