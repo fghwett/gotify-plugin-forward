@@ -13,7 +13,7 @@ import (
 
 type memStorage struct{ data []byte }
 
-func (m *memStorage) Save(b []byte) error { m.data = b; return nil }
+func (m *memStorage) Save(b []byte) error   { m.data = b; return nil }
 func (m *memStorage) Load() ([]byte, error) { return m.data, nil }
 
 func newTestApp(t *testing.T, storage *memStorage) *App {
@@ -66,7 +66,7 @@ func TestEffectiveConfigPriority(t *testing.T) {
 
 func TestConfigValidate(t *testing.T) {
 	conf := &Config{
-		Channels: map[string]map[string]interface{}{"b1": {"type": "bark"}},
+		Channels: map[string]map[string]interface{}{"b1": {"type": "bark", "url": "https://example.com/t"}},
 		Rules:    map[string][]*Rule{"all": {{Channel: "missing", Enabled: true}}},
 	}
 	assert.ErrorContains(t, conf.Validate(), "不存在的渠道")

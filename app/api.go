@@ -3,10 +3,15 @@ package app
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/gotify/plugin-api"
+
+	"github.com/fghwett/gotify-plugin-forward/channels"
+	"github.com/fghwett/gotify-plugin-forward/consts"
 )
 
 // handleAuthStatus 返回 passkey 设置与登录状态，供页面决定展示哪个视图。
@@ -190,6 +195,88 @@ func (a *App) requireSession(ctx *gin.Context) {
 		return
 	}
 	ctx.Next()
+}
+
+// handleTestSend 用提交的渠道配置（无需先保存）发送一条测试消息，
+// 便于在配置页即时验证推送地址与参数是否可用。
+func (a *App) handleTestSend(ctx *gin.Context) {
+	var body struct {
+		Channel map[string]interface{} `json:"channel" binding:"required"`
+	}
+	if err := ctx.BindJSON(&body); err != nil {
+		_ = ctx.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	name := ctx.Query("name")
+	if name == "" {
+		name = "未命名渠道"
+	}
+	typeVal, _ := body.Channel[RuleTypeKey].(string)
+	if RuleType(typeVal) != RuleTypeBark {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Result{Code: http.StatusBadRequest, Message: "仅支持测试 bark 类型渠道"})
+		return
+	}
+	client := channels.NewBarkClient(body.Channel, a.logger)
+	conf, err := client.Parse(body.Channel)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Result{Code: http.StatusBadRequest, Message: err.Error()})
+		return
+	}
+	if err = conf.Validate(name); err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, Result{Code: http.StatusBadRequest, Message: err.Error()})
+		return
+	}
+
+	begin := time.Now()
+	err = a.sendToChannel(body.Channel, testMessage())
+	ctx.JSON(http.StatusOK, gin.H{
+		"ok":      err == nil,
+		"error":   errText(err),
+		"cost_ms": time.Since(begin).Milliseconds(),
+	})
+}
+
+// handleLogsGet 返回投递日志（新→旧），供配置页日志标签展示。
+func (a *App) handleLogsGet(ctx *gin.Context) {
+	logs := a.store.Logs()
+	out := make([]DeliveryLog, 0, len(logs))
+	for i := len(logs) - 1; i >= 0; i-- {
+		out = append(out, logs[i])
+	}
+	ctx.JSON(http.StatusOK, gin.H{"logs": out, "max": MaxDeliveryLogs})
+}
+
+// handleLogsClear 清空投递日志。
+func (a *App) handleLogsClear(ctx *gin.Context) {
+	if err := a.store.ClearLogs(); err != nil {
+		a.abortInternal(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{Code: 0, Message: "success"})
+}
+
+// handleMeta 返回插件元信息，展示在「关于」标签。
+func (a *App) handleMeta(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{
+		"version": consts.PluginVersion,
+		"name":    consts.PluginName,
+	})
+}
+
+func testMessage() plugin.Message {
+	return plugin.Message{
+		Title:    "gotify-plugin-forward 测试消息",
+		Message:  "如果你看到这条推送，说明该渠道配置可用。",
+		Priority: 5,
+	}
+}
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func (a *App) authenticated(ctx *gin.Context) bool {

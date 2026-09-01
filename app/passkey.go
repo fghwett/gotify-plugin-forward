@@ -32,8 +32,8 @@ func (u *passkeyUser) WebAuthnID() []byte {
 	return []byte(u.name)
 }
 
-func (u *passkeyUser) WebAuthnName() string          { return u.name }
-func (u *passkeyUser) WebAuthnDisplayName() string   { return u.name }
+func (u *passkeyUser) WebAuthnName() string        { return u.name }
+func (u *passkeyUser) WebAuthnDisplayName() string { return u.name }
 func (u *passkeyUser) WebAuthnCredentials() []webauthn.Credential {
 	if u.data == nil {
 		return nil

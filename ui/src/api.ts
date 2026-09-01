@@ -22,6 +22,14 @@ export const logout = () => request('auth/logout', { method: 'POST' })
 export const getConfig = () => request('config')
 export const saveConfig = (config: unknown) =>
   request('config', { method: 'POST', body: JSON.stringify(config) })
+export const testChannel = (channel: unknown, name?: string) =>
+  request(`test${name ? `?name=${encodeURIComponent(name)}` : ''}`, {
+    method: 'POST',
+    body: JSON.stringify({ channel }),
+  })
+export const getLogs = () => request('logs')
+export const clearLogs = () => request('logs', { method: 'DELETE' })
+export const getMeta = () => request('meta')
 
 // ---------- WebAuthn ----------
 
@@ -83,13 +91,13 @@ function finishCeremony(kind: 'register' | 'login', sessionId: string, credentia
   }
   if (kind === 'register') {
     body.response = {
-      ...body.response,
+      ...(body.response as Record<string, unknown>),
       attestationObject: bufferToB64url(response.attestationObject),
       transports: ['internal', 'hybrid', 'usb'],
     }
   } else {
     body.response = {
-      ...body.response,
+      ...(body.response as Record<string, unknown>),
       authenticatorData: bufferToB64url(response.authenticatorData),
       signature: bufferToB64url(response.signature),
       userHandle: response.userHandle ? bufferToB64url(response.userHandle) : null,

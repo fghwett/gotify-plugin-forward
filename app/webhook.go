@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/fghwett/gotify-plugin-forward/channels"
 )
 
 // RegisterWebhook implements plugin.Webhooker.
@@ -34,6 +36,10 @@ func (a *App) RegisterWebhook(basePath string, g *gin.RouterGroup) {
 		api.POST("/auth/logout", a.handleLogout)
 		api.GET("/config", a.requireSession, a.handleConfigGet)
 		api.POST("/config", a.requireSession, a.handleConfigSave)
+		api.POST("/test", a.requireSession, a.handleTestSend)
+		api.GET("/logs", a.requireSession, a.handleLogsGet)
+		api.DELETE("/logs", a.requireSession, a.handleLogsClear)
+		api.GET("/meta", a.requireSession, a.handleMeta)
 	}
 }
 
@@ -66,11 +72,8 @@ func (a *App) Message(ctx *gin.Context) {
 		return
 	}
 
-	// 额外推送消息
-	if err = a.sendExtraMessage(a.getToken(ctx), *message); err != nil {
-		_ = ctx.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
+	// 额外推送：异步执行，失败重试并记录投递日志，不影响本接口响应
+	a.sendExtraMessage(a.getToken(ctx), *message)
 
 	ctx.JSON(http.StatusOK, Result{
 		Code:    0,
@@ -162,8 +165,8 @@ func (c *MessageHandler) SendMessage(message plugin.Message) error {
 		RawQuery: source.RawQuery,
 	}
 
-	var resp *http.Response
-	if resp, err = http.Post(to.String(), `application/json`, bytes.NewReader(body)); err != nil {
+	resp, err := channels.HTTPClient.Post(to.String(), `application/json`, bytes.NewReader(body))
+	if err != nil {
 		return err
 	}
 	defer func() {

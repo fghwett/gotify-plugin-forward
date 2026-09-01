@@ -8,10 +8,11 @@ import (
 )
 
 // StoredData 是写入插件持久化存储（plugin.StorageHandler）的全部数据，
-// 包含可视化编辑的配置和 passkey 凭据，整体序列化为一份 JSON。
+// 整体序列化为一份 JSON：配置、passkey 凭据与投递日志各自独立成段。
 type StoredData struct {
-	Config  *Config      `json:"config,omitempty"`
-	Passkey *PasskeyData `json:"passkey,omitempty"`
+	Config  *Config       `json:"config,omitempty"`
+	Passkey *PasskeyData  `json:"passkey,omitempty"`
+	Logs    []DeliveryLog `json:"logs,omitempty"`
 }
 
 // PasskeyData 保存用户 handle 与凭据公钥部分，私钥永远留在用户设备上。
@@ -102,5 +103,36 @@ func (s *store) ClearPasskey() error {
 		return nil
 	}
 	s.data.Passkey = nil
+	return s.persist()
+}
+
+// Logs 返回投递日志（旧→新），超过上限时只保留最近 MaxDeliveryLogs 条。
+func (s *store) Logs() []DeliveryLog {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.data.Logs
+}
+
+// AppendLog 追加一条投递日志并落盘，超限时淘汰最旧的记录。
+func (s *store) AppendLog(entry DeliveryLog) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data.Logs = append(s.data.Logs, entry)
+	if overflow := len(s.data.Logs) - MaxDeliveryLogs; overflow > 0 {
+		s.data.Logs = s.data.Logs[overflow:]
+	}
+	return s.persist()
+}
+
+// ClearLogs 清空投递日志。
+func (s *store) ClearLogs() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.data.Logs == nil {
+		return nil
+	}
+	s.data.Logs = nil
 	return s.persist()
 }
