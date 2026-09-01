@@ -16,13 +16,17 @@ jobs:
       PLUGIN_NAME: gotify-plugin-forward
       GOTIFY_VERSION: ${{ inputs.gotify_version }}
     steps:
-      - uses: actions/checkout@v8
+      - uses: actions/checkout@v7
+
+      # 输入可能带也可能不带 v 前缀，统一成 v 前缀标签供后续步骤使用
+      - name: 规范化版本号
+        run: echo "GOTIFY_TAG=v${GOTIFY_VERSION#v}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -31,19 +35,18 @@ jobs:
 
       - name: 按 gotify ${{ env.GOTIFY_VERSION }} 对齐依赖
         run: |
-          wget -qO gotify-server.mod https://raw.githubusercontent.com/gotify/server/${GOTIFY_VERSION}/go.mod
+          wget -qO gotify-server.mod https://raw.githubusercontent.com/gotify/server/${GOTIFY_TAG}/go.mod
           "$(go env GOPATH)/bin/gomod-cap" -from gotify-server.mod -to go.mod
           rm gotify-server.mod
           go mod tidy
 
       - name: 构建前端（SolidJS 配置页面）
         run: |
-          corepack enable pnpm
           cd ui && pnpm install && pnpm build && touch ../app/web/.gitkeep
 
       - name: 获取 gotify 编译用 Go 版本并准备 QEMU（arm64 需要）
         run: |
-          echo "GO_VERSION=$(wget -qO- https://raw.githubusercontent.com/gotify/server/${GOTIFY_VERSION}/GO_VERSION)" >> "$GITHUB_ENV"
+          echo "GO_VERSION=$(wget -qO- https://raw.githubusercontent.com/gotify/server/${GOTIFY_TAG}/GO_VERSION)" >> "$GITHUB_ENV"
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: 编译 linux-amd64
@@ -71,7 +74,7 @@ jobs:
         run: go test ./...
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.PLUGIN_NAME }}-${{ env.GOTIFY_VERSION }}
           path: |
